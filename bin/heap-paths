@@ -1,0 +1,35 @@
+#!/bin/bash
+# heap-paths [--plugin NAME|CLASSPATH]... [-J<jvm-arg>]... (paths|histo) DUMP CLASS [options]
+# Compiles itself (and named plugins under plugins/) on first use; needs a JDK 17+ and coursier (cs).
+set -euo pipefail
+HOME_DIR=$(cd "$(dirname "$0")/.." && pwd)
+JAVA_HOME=${JAVA_HOME:-$(/usr/libexec/java_home 2>/dev/null || dirname "$(dirname "$(readlink -f "$(command -v java)")")")}
+CACHE=${HEAP_PATHS_CACHE:-$HOME/.cache/heap-paths}
+NB_VERSION=RELEASE220
+CS=$(command -v cs || command -v coursier)
+NB=$("$CS" fetch -q --intransitive "org.netbeans.modules:org-netbeans-lib-profiler:$NB_VERSION")
+
+compile() { # name srcdir [resources] -> prints output dir
+  local out="$CACHE/$1-$(cd "$2" && find . -type f -exec cat {} + | shasum | cut -c1-12)"
+  if [ ! -d "$out" ]; then
+    mkdir -p "$out.tmp"
+    "$JAVA_HOME/bin/javac" -nowarn -d "$out.tmp" -cp "$NB:$CACHE/core-current" $(find "$2" -name '*.java') >&2
+    [ -n "${3:-}" ] && cp -R "$3/." "$out.tmp/"
+    mv "$out.tmp" "$out"
+  fi
+  echo "$out"
+}
+mkdir -p "$CACHE"
+CORE=$(compile core "$HOME_DIR/src"); ln -sfn "$CORE" "$CACHE/core-current"
+
+CP="$NB:$CORE"; JVM=(-Xmx8g)
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --plugin) shift
+      if [ -d "$HOME_DIR/plugins/$1" ]; then CP="$CP:$(compile "plugin-$1" "$HOME_DIR/plugins/$1/src" "$HOME_DIR/plugins/$1/resources")"
+      else CP="$CP:$1"; fi; shift ;;
+    -J*) JVM+=("${1#-J}"); shift ;;
+    *) break ;;
+  esac
+done
+exec "$JAVA_HOME/bin/java" "${JVM[@]}" -cp "$CP" heappaths.Main "$@"
