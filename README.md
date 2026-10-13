@@ -1,4 +1,4 @@
-# heap-paths
+# jvm-heap-paths
 
 Command-line answers to "why is this object still alive?" for `.hprof` heap dumps, built on the NetBeans profiler heap library (the engine behind VisualVM's heap walker). It's for when you want the answer in a terminal, a script or a transcript rather than in a GUI.
 
@@ -44,3 +44,7 @@ bin/heap-paths histo /tmp/runs.hprof 'dotty.tools.dotc.core.Types$LazyRef' --non
 ```
 
 `RunLeakRepro.scala` options: `-Drepro.dump=FILE` writes a heap dump after the last run while the root context is still reachable; `-Drepro.census` reports docstring-map entries for stale symbols; `-Drepro.gadt` reports symbols in the root's and the last run's GADT constraint.
+
+## License
+
+Apache License 2.0, see `LICENSE`. The NetBeans profiler library is fetched at run time and is not distributed here.
